@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signaux MA50 · short strangle 270j</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --line:#e3e6ec;
+    --txt:#1a2233; --mut:#6c7a90; --dim:#9aa6b8;
+    --acc:#3b82f6; --amber:#f59e0b;
+    --green:#10b981; --red:#ef4444;
+    --call:#10b981; --put:#ef4444;
+  }
+  body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;padding:24px}
+  .wrap{max-width:960px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .logo{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--txt)}
+  .logo .mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#1e3a8a,#3b82f6,#06b6d4);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;letter-spacing:.5px;box-shadow:0 2px 6px rgba(59,130,246,.25)}
+  .logo .mark svg{display:block;width:20px;height:20px;fill:#fff}
+  .logo .wm{display:flex;flex-direction:column;line-height:1.1}
+  .logo .wm b{font-size:15px;font-weight:800}
+  .logo .wm small{font-size:9.5px;color:var(--mut);text-transform:uppercase;letter-spacing:1.2px}
+  .fresh{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);padding:5px 10px;border-radius:6px;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+  .fresh .dot{width:9px;height:9px;border-radius:50%;background:var(--dim);box-shadow:0 0 0 3px rgba(154,166,184,.18)}
+  .fresh.ok .dot{background:var(--green);box-shadow:0 0 0 3px rgba(16,185,129,.18);animation:pulse 2.2s infinite}
+  .fresh.err .dot{background:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .fresh b{color:var(--txt);font-weight:600}
+  .live-count{margin-left:auto;font-size:13px;color:var(--mut)}
+  .live-count b{color:var(--green);font-size:15px}
+
+  .section{margin-top:22px}
+  .section h2{font-size:13px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .section h2 .badge{background:var(--green);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;letter-spacing:0}
+  .badge.amber{background:var(--amber)}
+  .badge.blue{background:var(--acc)}
+
+  .live-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px}
+  .sig-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  .sig-card.live{border-left:4px solid var(--green)}
+  .sig-card .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .sig-card .tkr{font-size:18px;font-weight:700}
+  .sig-card .tag{font-size:10px;background:var(--bg);color:var(--mut);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:500;border:1px solid var(--line)}
+  .sig-card .side{font-size:11px;font-weight:700;padding:3px 9px;border-radius:4px;letter-spacing:.4px;color:#fff}
+  .side.CALL{background:var(--call)}
+  .side.PUT{background:var(--put)}
+  .sig-card .row{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 12px;font-size:12.5px;margin-top:4px;align-items:baseline}
+  .sig-card .lbl{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
+  .sig-card .val{font-weight:600;font-variant-numeric:tabular-nums}
+  .sig-card .val.z{font-size:15px}
+  .sig-card .val.z.pos{color:var(--green)}
+  .sig-card .val.z.neg{color:var(--red)}
+  .sig-card .meta{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:11.5px;color:var(--mut)}
+  .sig-card .meta b{color:var(--txt)}
+
+  .near-controls{display:flex;gap:8px;margin:0 0 10px;align-items:center;font-size:12px;color:var(--mut);flex-wrap:wrap}
+  .near-controls .thr{padding:4px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);cursor:pointer;font:inherit;color:var(--mut)}
+  .near-controls .thr.on{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:600}
+  .near-controls .hint{margin-left:4px}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  thead th{background:#fafbfd;text-align:left;font-size:11px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+  thead th.sort:hover{background:#eef1f6}
+  thead th .arr{display:inline-block;width:10px;color:var(--dim)}
+  tbody td{padding:9px 12px;border-top:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  tbody tr:hover td{background:#fafbfd}
+  .pos{color:var(--green);font-weight:600}
+  .neg{color:var(--red);font-weight:600}
+  .pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600}
+  .pill.call{background:rgba(16,185,129,.12);color:var(--call)}
+  .pill.put {background:rgba(239,68,68,.12);color:var(--put)}
+
+  footer{margin-top:32px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--mut);text-align:center}
+  @media (max-width:640px){
+    header{flex-direction:column;align-items:flex-start}
+    .live-count{margin-left:0}
+    .sig-card .row{grid-template-columns:auto 1fr}
+    .near-controls .hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="logo" href="./index.html" title="Krechendo Trading · Signaux">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 17 L9 11 L13 15 L21 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="21" cy="5" r="2.2"/></svg>
+    </span>
+    <span class="wm"><b>Krechendo Trading</b><small>Signaux MA50 · Z‑score</small></span>
+  </a>
+  <div class="fresh" id="fresh" title="Indicateur de fraîcheur des données">
+    <span class="dot"></span><span>MàJ <b id="at">—</b></span>
+    <span style="color:var(--dim)">·</span><span><b id="recCnt">0</b> tickers</span>
+  </div>
+  <div class="live-count"><b id="liveN">0</b> signaux actifs</div>
+</header>
+
+<section class="section" id="sec-live">
+  <h2>Signaux actifs <span class="badge" id="liveBadge">0</span></h2>
+  <div class="live-grid" id="live-grid"></div>
+</section>
+
+<section class="section" id="sec-near">
+  <h2>Proches du signal <span class="badge amber" id="nearBadge">0</span></h2>
+  <div class="near-controls">
+    <span>Seuil |Z| :</span>
+    <button class="thr on" data-thr="0.7">≥ 0,7σ</button>
+    <button class="thr"    data-thr="0.8">≥ 0,8σ</button>
+    <button class="thr"    data-thr="0.9">≥ 0,9σ</button>
+    <span class="hint" id="nearHint"></span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Ticker</th><th>Groupe</th><th>Sens</th>
+      <th>Spot</th><th>MA50</th><th>Z</th>
+    </tr></thead>
+    <tbody id="near-body"></tbody>
+  </table>
+</section>
+
+<section class="section" id="sec-past">
+  <h2>Signaux précédents <span class="badge blue" id="pastBadge">0</span></h2>
+  <div class="near-controls">
+    <span>Groupe :</span>
+    <button class="thr on" data-g="ALL">Tous</button>
+    <button class="thr"    data-g="ETF">ETF</button>
+    <button class="thr"    data-g="S&amp;P">S&amp;P</button>
+    <button class="thr"    data-g="FUT">Futures</button>
+    <span class="hint">·</span>
+    <span>Sens :</span>
+    <select id="side" style="font:inherit;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel)">
+      <option value="ALL">Tous</option><option value="CALL">CALL</option><option value="PUT">PUT</option>
+    </select>
+    <span>Ticker :</span>
+    <input id="q" type="text" placeholder="ex. SPY, CC=F…" style="font:inherit;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);min-width:120px">
+  </div>
+  <table>
+    <thead><tr>
+      <th class="sort" data-k="date">Date<span class="arr"></span></th>
+      <th class="sort" data-k="ticker">Ticker<span class="arr"></span></th>
+      <th class="sort" data-k="group">Groupe<span class="arr"></span></th>
+      <th class="sort" data-k="side">Sens<span class="arr"></span></th>
+      <th class="sort" data-k="Z">Z<span class="arr"></span></th>
+      <th class="sort" data-k="price">Prix au signal<span class="arr"></span></th>
+    </tr></thead>
+    <tbody id="past-body"></tbody>
+  </table>
+</section>
+
+<footer>Données : <code>signals.json</code> · MA50 + |Z|&gt;1σ · yfinance OHLCV 2000→2026 · 270j DTE · Δ=0.10 · Mise à jour quotidienne automatique</footer>
+
+<script>
+/* ============== état global ============== */
+let DATA = null;
+let NEAR_THR = 0.7;
+let GROUP = 'ALL';
+let SIDE = 'ALL';
+let Q = '';
+const SORT = { k: 'date', dir: -1 };
+
+/* ============== helpers ============== */
+function fmtNum(x, d=2){
+  if(x===null||x===undefined||isNaN(x)) return '—';
+  return Number(x).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function fmtZ(z){
+  if(z===null||z===undefined||isNaN(z)) return '—';
+  return (z>=0?'+':'') + z.toFixed(3);
+}
+
+/* ============== freshness indicator ============== */
+function setFresh(state, generatedRaw, tickers){
+  const el = document.getElementById('fresh');
+  const at = document.getElementById('at');
+  const rc = document.getElementById('recCnt');
+  el.classList.remove('ok','err');
+  if(state==='ok'){
+    el.classList.add('ok');
+    at.textContent = generatedRaw ? generatedRaw.replace('T',' ').replace('Z',' UTC') : '—';
+    rc.textContent = tickers || 0;
+  }else{
+    el.classList.add('err');
+    at.textContent = 'OFFLINE';
+    rc.textContent = 0;
+  }
+}
+
+/* ============== data flattening ============== */
+function normalize(raw){
+  const tickers = {};
+  for(const [t,v] of Object.entries(raw.tickers||{})){
+    tickers[t] = v;
+  }
+  const live = [];
+  for(const v of Object.values(tickers)){
+    if(v.signal){
+      live.push({
+        ticker: v.ticker, group: v.group, signal: v.signal,
+        last_close: v.last_close, MA50: v.MA50,
+        strike: v.strike, distance_pct: v.distance_pct,
+        Z: v.Z, asof: v.asof,
+        last_signal_date: v.last_signal_date,
+        last_signal_price: v.last_signal_price,
+        last_signal_side: v.last_signal_side,
+        sigma60_annual: v.sigma60_annual,
+      });
+    }
+  }
+  const near = raw.near_signals || [];
+  const past = raw.past_signals || [];
+  return { generated_at: raw.generated_at, tickers, live, near, past };
+}
+
+/* ============== rendering ============== */
+function renderLive(){
+  const grid = document.getElementById('live-grid');
+  grid.innerHTML = '';
+  const list = (DATA?.live||[]).slice().sort((a,b)=>Math.abs(b.Z)-Math.abs(a.Z));
+  document.getElementById('liveBadge').textContent = list.length;
+  document.getElementById('liveN').textContent = list.length;
+  if(list.length===0){
+    grid.innerHTML = '<div style="color:var(--mut);font-size:13px;background:var(--panel);padding:18px;border:1px solid var(--line);border-radius:10px;text-align:center">Aucun signal actif aujourd\'hui (|Z| &lt; 1σ).</div>';
+    return;
+  }
+  for(const c of list){
+    const side = c.signal;
+    const div = document.createElement('div');
+    div.className = 'sig-card live';
+    div.innerHTML = `
+      <div class="top">
+        <span class="tkr">${c.ticker}<span class="tag">${c.group}</span></span>
+        <span class="side ${side}">${side}</span>
+      </div>
+      <div class="row">
+        <span class="lbl">Prix au signal</span><span class="val">${fmtNum(c.last_signal_price,4)}</span>
+        <span class="lbl">MA50</span><span class="val">${fmtNum(c.MA50)}</span>
+      </div>
+      <div class="row">
+        <span class="lbl">Z aujourd'hui</span><span class="val z ${c.Z>=0?'pos':'neg'}">${fmtZ(c.Z)}</span>
+        <span class="lbl">Strike Δ≈0,10</span><span class="val">${fmtNum(c.strike)}</span>
+      </div>
+      <div class="row">
+        <span class="lbl">Spot</span><span class="val">${fmtNum(c.last_close)}</span>
+        <span class="lbl">Distance</span><span class="val">${c.distance_pct!==null?(c.distance_pct>=0?'+':'')+c.distance_pct.toFixed(1)+'%':'—'}</span>
+      </div>
+      <div class="meta">Signal émis le <b>${c.last_signal_date}</b> (${c.last_signal_side}) · DTE ~270 j</div>`;
+    grid.appendChild(div);
+  }
+}
+
+function renderNear(){
+  const body = document.getElementById('near-body');
+  body.innerHTML = '';
+  const raw = DATA?.__raw;
+  let rows = [];
+  if(raw && raw.tickers){
+    for(const v of Object.values(raw.tickers)){
+      if(!v.signal && Math.abs(v.Z) >= NEAR_THR && Math.abs(v.Z) < 1.0){
+        rows.push(v);
+      }
+    }
+  } else if(DATA?.near){
+    rows = DATA.near.filter(v=>Math.abs(v.Z) >= NEAR_THR);
+  }
+  rows.sort((a,b)=>Math.abs(b.Z)-Math.abs(a.Z));
+  document.getElementById('nearBadge').textContent = rows.length;
+  document.getElementById('nearHint').textContent = rows.length===0
+    ? 'Aucun marché ne dépasse ce seuil aujourd\'hui.'
+    : 'Seuil appliqué : |Z| ≥ '+NEAR_THR.toFixed(1).replace('.',',')+' σ';
+  for(const r of rows){
+    const sens = r.Z>0?'CALL':'PUT';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><b>${r.ticker}</b></td>
+      <td>${r.group}</td>
+      <td><span class="pill ${sens.toLowerCase()}">${sens}</span></td>
+      <td>${fmtNum(r.last_close)}</td>
+      <td>${fmtNum(r.MA50)}</td>
+      <td class="${r.Z>=0?'pos':'neg'}">${fmtZ(r.Z)}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+function renderPast(){
+  const body = document.getElementById('past-body');
+  body.innerHTML = '';
+  let rows = (DATA?.past||[]).slice();
+  if(SIDE !== 'ALL') rows = rows.filter(r=>r.side===SIDE);
+  if(GROUP !== 'ALL') rows = rows.filter(r=>r.group===GROUP);
+  if(Q) rows = rows.filter(r=>(r.ticker||'').toUpperCase().includes(Q));
+  rows.sort((a,b)=>{
+    const va=a[SORT.k], vb=b[SORT.k];
+    if(va<vb) return -1*SORT.dir;
+    if(va>vb) return  1*SORT.dir;
+    return 0;
+  });
+  document.getElementById('pastBadge').textContent = rows.length;
+  for(const r of rows){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td>
+      <td><b>${r.ticker}</b></td>
+      <td>${r.group}</td>
+      <td><span class="pill ${(r.side||'').toLowerCase()}">${r.side}</span></td>
+      <td class="${r.Z>=0?'pos':'neg'}">${fmtZ(r.Z)}</td>
+      <td>${fmtNum(r.price,4)}</td>`;
+    body.appendChild(tr);
+  }
+  document.querySelectorAll('th.sort').forEach(th=>{
+    const arr = th.querySelector('.arr');
+    if(th.dataset.k===SORT.k) arr.textContent = SORT.dir===-1?'▼':'▲';
+    else arr.textContent='';
+  });
+}
+
+/* ============== événements (UI seulement — aucun fetch déclenché) ============== */
+document.getElementById('q').addEventListener('input', e=>{ Q=e.target.value.toUpperCase(); renderPast(); });
+document.getElementById('side').addEventListener('change', e=>{ SIDE=e.target.value; renderPast(); });
+document.querySelectorAll('[data-g]').forEach(ch=>ch.addEventListener('click', e=>{
+  document.querySelectorAll('[data-g]').forEach(c=>c.classList.remove('on'));
+  e.currentTarget.classList.add('on');
+  GROUP = e.currentTarget.dataset.g;
+  renderPast();
+}));
+document.querySelectorAll('[data-thr]').forEach(th=>th.addEventListener('click', e=>{
+  document.querySelectorAll('[data-thr]').forEach(c=>c.classList.remove('on'));
+  e.currentTarget.classList.add('on');
+  NEAR_THR = parseFloat(e.currentTarget.dataset.thr);
+  renderNear();
+}));
+document.querySelectorAll('th.sort').forEach(th=>th.addEventListener('click', ()=>{
+  const k = th.dataset.k;
+  if(SORT.k===k) SORT.dir *= -1; else { SORT.k=k; SORT.dir=-1; }
+  renderPast();
+}));
+
+/* ============== chargement initial (une seule fois, pas de timer) ============== */
+async function load(){
+  try{
+    const r = await fetch('signals.json', {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const raw = await r.json();
+    DATA = normalize(raw);
+    DATA.__raw = raw;
+    const n = raw.tickers ? Object.keys(raw.tickers).length : 0;
+    setFresh('ok', DATA.generated_at, n);
+  }catch(e){
+    console.warn('fetch signals.json failed:', e);
+    DATA = {tickers:[], live:[], near_signals:[], past_signals:[], generated_at:null};
+    DATA.__raw = null;
+    setFresh('err', null, 0);
+  }finally{
+    renderLive(); renderNear(); renderPast();
+  }
+}
+load();
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
